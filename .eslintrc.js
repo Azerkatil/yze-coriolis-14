@@ -12,12 +12,9 @@ module.exports = {
     // Classes
     Macro: "readonly",
 
-    // hack for tinyMCE
     TextEditor: "readonly",
-    ROUTE_PREFIX: "readonly",
     // foundry utils
     foundry: "readonly",
-    DocumentSheetConfig: "readonly",
     fromUuid: "readonly",
   },
   rules: {},

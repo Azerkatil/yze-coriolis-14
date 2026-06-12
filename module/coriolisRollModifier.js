@@ -1,12 +1,14 @@
 import { coriolisRoll } from "./coriolis-roll.js";
 
+const { FormApplication } = foundry.appv1.api;
+
 export class CoriolisModifierDialog extends FormApplication {
     constructor(rollData, chatOptions) {
       super();
       this.rollData = rollData;
       this.chatOptions = chatOptions;
       this.rollVisibility = game.settings.get("yzecoriolis", "RollVisibility");
-      this.rollMode = game.settings.get("core", "rollMode");
+      this.messageMode = game.settings.get("core", "messageMode");
       this.isAutomatic = rollData.isAutomatic;
       this.automaticFire = rollData.automaticFire;
       this.machineGunner = rollData.machineGunner;
@@ -23,7 +25,7 @@ export class CoriolisModifierDialog extends FormApplication {
     }
   
     static get defaultOptions() {
-      return mergeObject(super.defaultOptions, {
+      return foundry.utils.mergeObject(super.defaultOptions, {
         classes: ['form'],
         popOut: true,
         template: "systems/yzecoriolis/templates/dialog/coriolis-roll.html",
@@ -43,7 +45,7 @@ export class CoriolisModifierDialog extends FormApplication {
       // Send data to the template
         return {
           rollVisibility: this.rollVisibility,
-          rollMode: this.rollMode,
+          messageMode: this.messageMode,
           isAutomatic: this.isAutomatic,
           automaticFire: this.automaticFire,
           machineGunner: this.machineGunner,
@@ -61,7 +63,7 @@ export class CoriolisModifierDialog extends FormApplication {
 
     async _onChangeInput(event) {    
       if (event.currentTarget.name === "dialogRollMode") {
-        this.rollMode = event.currentTarget.value;
+        this.messageMode = event.currentTarget.value;
       }
       if (event.currentTarget.name === "automaticFire") {
         this.automaticFire = event.currentTarget.checked;
@@ -83,7 +85,7 @@ export class CoriolisModifierDialog extends FormApplication {
     }
 
     async _updateObject(event, formData) {
-      this.chatOptions.rollMode = this.rollMode;
+      this.chatOptions.messageMode = this.messageMode;
       this.rollData.modifier = parseInt(event.submitter.value);
       this.rollData.automaticFire = this.automaticFire;
       this.rollData.machineGunner = this.machineGunner ? 1 : 0;

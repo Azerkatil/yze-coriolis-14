@@ -8,7 +8,7 @@ The **Official** system for playing [Coriolis](https://frialigan.se/en/games/cor
 
 1. Inside Foundry's Configuration and Setup screen, go to **Game Systems**
 2. Click "Install System"
-3. In the Manifest URL field paste: `https://raw.githubusercontent.com/winks-vtt/yze-coriolis/master/system.json`
+3. In the Manifest URL field paste: `https://github.com/Gunderstormin/yze-coriolis-14/releases/latest/download/system.json`
 
 ## Official Modules
 

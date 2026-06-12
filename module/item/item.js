@@ -1,5 +1,8 @@
 import { CoriolisModifierDialog } from "../coriolisRollModifier.js";
 import { migrateBlastPower, migrateTalentBonus } from "../migration.js";
+
+const { renderTemplate } = foundry.applications.handlebars;
+
 /**
  * Extend the basic Item with some very simple modifications.
  * @extends {Item}
@@ -17,11 +20,6 @@ export class yzecoriolisItem extends Item {
     const itemData = this;
     if (itemData.type === "talent") this._prepareTalentData(itemData);
 
-    // Migrate wrong blastPower-values
-    if (itemData.type === "weapon" && itemData.system.explosive) {
-      // TODO: move this to migrateData
-      migrateBlastPower(itemData);
-    }
   }
 
   // eslint-disable-next-line no-unused-vars
@@ -31,6 +29,7 @@ export class yzecoriolisItem extends Item {
 
   static migrateData(source) {
     migrateTalentBonus(source);
+    migrateBlastPower(source);
     return super.migrateData(source);
   }
 
@@ -39,7 +38,10 @@ export class yzecoriolisItem extends Item {
     // for cloning operations just keep the image. this is a brittle hack. Would
     // like to find a way to override item icons on create, but ignore it on
     // cloning and imports from compendiums.
-    if (hasProperty(initData, "img") && initData.img !== Item.DEFAULT_ICON) {
+    if (
+      foundry.utils.hasProperty(initData, "img") &&
+      initData.img !== Item.DEFAULT_ICON
+    ) {
       return;
     }
     let itemType = initData.type;

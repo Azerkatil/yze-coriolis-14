@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.0.0](https://github.com/Gunderstormin/yze-coriolis-14/compare/v4.3.0...v5.0.0) (2026-06-12)
+
+### Features
+
+* add Foundry VTT 14.363 compatibility
+* convert the ship sheet tutorial compendium to LevelDB
+* migrate rolls, chat visibility, rich-text editing, and world migrations to v14 APIs
+
+### Maintenance
+
+* update package metadata and release workflow for the v14 fork
+
 ## [4.3.0](https://github.com/hodpub/yze-coriolis/compare/v4.2.0...v4.3.0) (2026-03-06)
 
 

@@ -1,6 +1,8 @@
 import { addDarknessPoints, spendDarknessPoints } from "./darkness-points.js";
 import { CoriolisModifierDialog } from "./coriolisPrayerModifier.js";
 
+const { renderTemplate } = foundry.applications.handlebars;
+
 /**
  * takes in rendering options, rollData and:
  * 1. does the roll
@@ -26,8 +28,8 @@ export async function coriolisRoll(chatOptions, rollData) {
     ? createAutomaticFireFormula(totalDice, rollData.numberOfIgnoredOnes)
     : `${totalDice}d6`;
   let roll = new Roll(formula);
-  await roll.evaluate({ async: false });
-  /* await showDiceSoNice(roll, chatOptions.rollMode); */
+  await roll.evaluate({ allowInteractive: false });
+  /* await showDiceSoNice(roll, chatOptions.messageMode); */
   const result = evaluateCoriolisRoll(rollData, roll);
   await showChatMessage(chatOptions, result, roll);
 }
@@ -43,9 +45,8 @@ export async function coriolisPushRoll(chatMessage, origRollData, origRoll) {
     for (let part of origRoll.dice) {
       for (let r of part.results) {
         if (r.result !== CONFIG.YZECORIOLIS.maxRoll) {
-          let newDie = new Die(6);
-          await newDie.roll(1);
-          r.result = newDie.results[0].result;
+          const newResult = await rollD6();
+          r.result = newResult.result;
         }
       }
 
@@ -54,14 +55,15 @@ export async function coriolisPushRoll(chatMessage, origRollData, origRoll) {
       if (!part.modifiers.includes("x>1")) {
         part.number = part.number + bonus;
         for (let i = 0; i < bonus; i++) {
-          let newDie = new Die(6);
-          await newDie.roll(1);
-          part.results.push(newDie.results[0]);
+          part.results.push(await rollD6());
         }
       }
     }
 
-    await showDiceSoNice(origRoll, chatMessage.rollMode);
+    await showDiceSoNice(
+      origRoll,
+      chatMessage.getFlag("yzecoriolis", "messageMode") ?? "public"
+    );
     const result = evaluateCoriolisRoll(origRollData, origRoll);
     await updateChatMessage(chatMessage, result, origRoll);
     if (origRollData.actorType === "npc") {
@@ -197,19 +199,23 @@ async function showChatMessage(chatMsgOptions, resultData, roll) {
     itemModifiersChecked: getRollModifiersChecked(resultData.rollData),
   };
 
-  if (["gmroll", "blindroll"].includes(chatMsgOptions.rollMode))
-    chatMsgOptions["whisper"] = ChatMessage.getWhisperRecipients("GM");
-  if (chatMsgOptions.rollMode === "blindroll") chatMsgOptions["blind"] = true;
-  else if (chatMsgOptions.rollMode === "selfroll")
-    chatMsgOptions["whisper"] = [game.user];
-
-  chatMsgOptions.roll = roll;
+  const messageMode =
+    chatMsgOptions.messageMode ?? game.settings.get("core", "messageMode");
   const html = await renderTemplate(chatMsgOptions.template, chatData);
-  chatMsgOptions["content"] = html;
-  chatMsgOptions["rolls"] = [roll];
-  const msg = await ChatMessage.create(chatMsgOptions);
-  // attach the results to the chat message so we can push later if needed.
-  await msg.setFlag("yzecoriolis", "results", chatData.results);
+  const messageData = {
+    ...chatMsgOptions,
+    content: html,
+    rolls: [roll],
+    flags: {
+      yzecoriolis: {
+        results: chatData.results,
+        messageMode,
+      },
+    },
+  };
+  delete messageData.messageMode;
+  delete messageData.template;
+  const msg = await ChatMessage.create(messageData, { messageMode });
   return msg;
 }
 
@@ -254,19 +260,14 @@ async function updateChatMessage(
     prayerModifiersChecked: getPrayerModifiersChecked(resultData.rollData),
   };
 
-  return renderTemplate(
+  const html = await renderTemplate(
     "systems/yzecoriolis/templates/sidebar/roll.html",
     chatData
-  ).then((html) => {
-    chatMessage["content"] = html;
-    return chatMessage
-      .update({
-        content: html,
-        ["flags.data"]: { results: chatData.results },
-      })
-      .then((newMsg) => {
-        ui.chat.updateMessage(newMsg);
-      });
+  );
+  return chatMessage.update({
+    content: html,
+    rolls: [origRoll.toJSON()],
+    "flags.yzecoriolis.results": chatData.results,
   });
 }
 
@@ -436,7 +437,7 @@ export async function coriolisChatListeners(html) {
     let results = message.getFlag("yzecoriolis", "results");
     console.log(message);
     let originalRoll = message.rolls[0]; // TODO: handle this in a safer manner.
-    if (message.flags.data?.results.pushed) {
+    if (results?.pushed) {
       let errorObj = { error: "YZECORIOLIS.ErrorsAlreadyPushed" };
       ui.notifications.error(new Error(game.i18n.localize(errorObj.error)));
       return;
@@ -452,21 +453,21 @@ export async function coriolisChatListeners(html) {
 /**
  * Add support for the Dice So Nice module
  * @param {Object} roll
- * @param {String} rollMode
+ * @param {String} messageMode
  */
-async function showDiceSoNice(roll, rollMode) {
+async function showDiceSoNice(roll, messageMode) {
   if (
     game.modules.get("dice-so-nice") &&
     game.modules.get("dice-so-nice").active
   ) {
     let whisper = null;
     let blind = false;
-    switch (rollMode) {
-      case "blindroll": //GM only
+    switch (messageMode) {
+      case "blind": //GM only
         blind = true;
       // fall through
       // eslint-disable-next-line no-fallthrough
-      case "gmroll": {
+      case "gm": {
         //GM + rolling player
         let gmList = game.users.filter((user) => user.isGM);
         let gmIDList = [];
@@ -474,7 +475,7 @@ async function showDiceSoNice(roll, rollMode) {
         whisper = gmIDList;
         break;
       }
-      case "roll": {
+      case "public": {
         //everybody
         let userList = game.users.filter((user) => user.active);
         let userIDList = [];
@@ -482,7 +483,7 @@ async function showDiceSoNice(roll, rollMode) {
         whisper = userIDList;
         break;
       }
-      case "selfroll": {
+      case "self": {
         // only roll to yourself
         let selfList = game.users.filter((user) => user._id === game.user._id);
         let selfIDList = [];
@@ -493,6 +494,12 @@ async function showDiceSoNice(roll, rollMode) {
     }
     await game.dice3d.showForRoll(roll, game.user, true, whisper, blind);
   }
+}
+
+async function rollD6() {
+  const die = new foundry.dice.terms.Die({ number: 1, faces: 6 });
+  await die.evaluate({ allowInteractive: false });
+  return foundry.utils.deepClone(die.results[0]);
 }
 
 /**

@@ -7,7 +7,7 @@ Hooks.on("updateUser", (entity, delta, options, userId) => {
   // we avoid any null sets because we are just doing a clearing of the flag
   // before setting it to a valid value.
   const isSettingDP =
-    hasProperty(delta, "flags.yzecoriolis.darknessPoints") &&
+    foundry.utils.hasProperty(delta, "flags.yzecoriolis.darknessPoints") &&
     delta.flags.yzecoriolis.darknessPoints !== null;
 
   if (options.diff && isSettingDP) {

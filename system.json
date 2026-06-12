@@ -2,13 +2,84 @@
     "id": "yzecoriolis",
     "title": "Coriolis",
     "description": "Coriolis System for Foundry VTT.",
-    "version": "4.3.0",
+    "version": "5.0.0",
     "compatibility": {
-        "minimum": "13",
-        "verified": "13",
-        "maximum": "13"
+        "minimum": "14",
+        "verified": "14.363",
+        "maximum": "14"
     },
-    "templateVersion": 2,
+    "documentTypes": {
+        "Actor": {
+            "character": {
+                "htmlFields": [
+                    "notes"
+                ]
+            },
+            "npc": {
+                "htmlFields": [
+                    "notes"
+                ]
+            },
+            "ship": {
+                "htmlFields": [
+                    "notes"
+                ]
+            }
+        },
+        "Item": {
+            "gear": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "talent": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "weapon": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "armor": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "injury": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "shipProblem": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "energyPointToken": {},
+            "shipModule": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "shipFeature": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "shipCriticalDamage": {
+                "htmlFields": [
+                    "description"
+                ]
+            },
+            "shipLogbook": {
+                "htmlFields": [
+                    "description"
+                ]
+            }
+        }
+    },
     "authors": [
         {
             "name": "Winks"
@@ -26,21 +97,14 @@
         "css/yzecoriolis.css",
         "css/yzecoriolismce.css"
     ],
-    "relationships": {
-        "systems": [
-            {
-                "id": "yzecoriolis"
-            }
-        ]
-    },
     "scripts": [],
     "packs": [
         {
             "name": "ship_sheet_instructions",
             "label": "Ship Sheet Instructions",
-            "path": "packs/ship-sheet-instructions.db",
+            "path": "packs/ship-sheet-instructions",
             "type": "JournalEntry",
-            "module": "Coriolis"
+            "system": "yzecoriolis"
         }
     ],
     "languages": [
@@ -76,13 +140,15 @@
         }
     ],
     "grid": {
+        "type": 1,
         "distance": 1,
-        "units": "m"
+        "units": "m",
+        "diagonals": 0
     },
-    "primaryTokenAttribute": "health",
-    "secondaryTokenAttribute": "power",
-    "url": "",
+    "primaryTokenAttribute": "hitPoints",
+    "secondaryTokenAttribute": "mindPoints",
+    "url": "https://github.com/Gunderstormin/yze-coriolis-14",
     "protected": false,
-    "manifest": "https://github.com/hodpub/yze-coriolis/releases/latest/download/system.json",
-    "download": "https://github.com/hodpub/yze-coriolis/releases/download/v4.3.0/coriolis.zip"
+    "manifest": "https://github.com/Gunderstormin/yze-coriolis-14/releases/latest/download/system.json",
+    "download": "https://github.com/Gunderstormin/yze-coriolis-14/releases/download/v5.0.0/coriolis.zip"
 }

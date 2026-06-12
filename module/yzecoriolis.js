@@ -13,14 +13,16 @@ import {
 } from "./item/item.js";
 import * as migrations from "./migration.js";
 import { preloadHandlerbarsTemplates } from "./templates.js";
-import { displayDarknessPoints } from "./darkness-points.js";
+import {
+  DarknessPointDisplay,
+  displayDarknessPoints,
+} from "./darkness-points.js";
 import { getActorDataById } from "./util.js";
 import {
   importShipSheetTutorial,
   showOnboardingMessage,
 } from "./onboarding.js";
-import { coriolisJournalSheet } from "./coriolisJournal.js";
-import { DarknessPointDisplay } from "./darkness-points.js";
+import "./coriolisJournal.js";
 
 Hooks.once("init", async function () {
   console.log(`Coriolis | Initializing Coriolis\n${YZECORIOLIS.ASCII}`);
@@ -32,19 +34,7 @@ Hooks.once("init", async function () {
     migrations: migrations,
   };
 
-  // Setup TinyMCE stylings
-  CONFIG.TinyMCE.content_css = "systems/yzecoriolis/css/yzecoriolismce.css";
-
-  // foundry.appv1.sheets.JournalSheet;
-  // JournalEntry
-  DocumentSheetConfig.registerSheet(
-    foundry.appv1.sheets.JournalSheet,
-    "yzecoriolis",
-    coriolisJournalSheet,
-    { makeDefault: true }
-  );
-
-  preloadHandlerbarsTemplates();
+  await preloadHandlerbarsTemplates();
 
   // Define custom Entity classes
   CONFIG.Actor.documentClass = yzecoriolisActor;
@@ -55,28 +45,50 @@ Hooks.once("init", async function () {
   registerSystemSettings();
 
   // Register sheet application classes
-  Actors.unregisterSheet("core", ActorSheet);
-  Actors.registerSheet("yzecoriolis", yzecoriolisActorSheet, {
-    types: ["character"],
-    makeDefault: true,
-    label: "YZECORIOLIS.SheetClassCharacter",
-  });
-  Actors.registerSheet("yzecoriolis", yzecoriolisActorSheet, {
-    types: ["npc"],
-    makeDefault: true,
-    label: "YZECORIOLIS.SheetClassNPC",
-  });
-  Actors.registerSheet("yzecoriolis", yzecoriolisShipSheet, {
-    types: ["ship"],
-    makeDefault: true,
-    label: "YZECORIOLIS.SheetClassShip",
-  });
+  foundry.documents.collections.Actors.unregisterSheet(
+    "core",
+    foundry.appv1.sheets.ActorSheet
+  );
+  foundry.documents.collections.Actors.registerSheet(
+    "yzecoriolis",
+    yzecoriolisActorSheet,
+    {
+      types: ["character"],
+      makeDefault: true,
+      label: "YZECORIOLIS.SheetClassCharacter",
+    }
+  );
+  foundry.documents.collections.Actors.registerSheet(
+    "yzecoriolis",
+    yzecoriolisActorSheet,
+    {
+      types: ["npc"],
+      makeDefault: true,
+      label: "YZECORIOLIS.SheetClassNPC",
+    }
+  );
+  foundry.documents.collections.Actors.registerSheet(
+    "yzecoriolis",
+    yzecoriolisShipSheet,
+    {
+      types: ["ship"],
+      makeDefault: true,
+      label: "YZECORIOLIS.SheetClassShip",
+    }
+  );
 
-  Items.unregisterSheet("core", ItemSheet);
-  Items.registerSheet("yzecoriolis", yzecoriolisItemSheet, {
-    makeDefault: true,
-    label: "SheetClassItem",
-  });
+  foundry.documents.collections.Items.unregisterSheet(
+    "core",
+    foundry.appv1.sheets.ItemSheet
+  );
+  foundry.documents.collections.Items.registerSheet(
+    "yzecoriolis",
+    yzecoriolisItemSheet,
+    {
+      makeDefault: true,
+      label: "SheetClassItem",
+    }
+  );
 
   /**
    * Set an initiative formula for the system
@@ -348,7 +360,7 @@ Hooks.on("renderChatMessageHTML", (msg, html, context) => {
     $(html).find(".message-content").remove();
   }
   // remove push option from non-authors
-  if (!game.user.isGM && msg.message.user !== game.user.id) {
+  if (!game.user.isGM && !msg.isAuthor) {
     $(html).find(".dice-push").remove();
   }
 });
@@ -398,23 +410,13 @@ Hooks.once("ready", async function () {
     "systemMigrationVersion"
   );
 
-  const NEEDS_MIGRATION_AFTER_VERSION = "3.1.0";
-  const COMPATIBLE_MIGRATION_VERSION = "1.4.7";
-
-  let needMigration =
-    isNewerVersion(currentVersion, NEEDS_MIGRATION_AFTER_VERSION) &&
-    isNewerVersion(NEEDS_MIGRATION_AFTER_VERSION, lastMigratedToVersion);
+  const needMigration = foundry.utils.isNewerVersion(
+    currentVersion,
+    lastMigratedToVersion
+  );
 
   // Perform the migration
   if (needMigration && game.user.isGM) {
-    if (
-      currentVersion &&
-      isNewerVersion(COMPATIBLE_MIGRATION_VERSION, currentVersion)
-    ) {
-      ui.notifications.error(game.i18n.localize("ErrorsOldFoundryVersion"), {
-        permanent: true,
-      });
-    }
     await migrations.migrateWorld();
   }
 

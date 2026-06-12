@@ -1,6 +1,6 @@
 {
   "name": "yzecoriolis",
-  "version": "1.0.0",
+  "version": "5.0.0",
   "description": "CSS compiler for the Year Zero Engine - Coriolis system",
   "scripts": {
     "build": "gulp",

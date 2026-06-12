@@ -7,7 +7,7 @@ export async function showOnboardingMessage() {
   const response = await $.get(path);
   ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ alias: "Coriolis - The Third Horizon" }),
-    whisper: [game.user],
+    whisper: [game.user.id],
     content: response,
   });
 

@@ -27,8 +27,9 @@ export class yzecoriolisActor extends Actor {
     //setup default images for ships
     if (
       initData.type === "ship" &&
-      ((hasProperty(initData, "img") && initData.img === Actor.DEFAULT_ICON) ||
-        !hasProperty(initData, "img"))
+      ((foundry.utils.hasProperty(initData, "img") &&
+        initData.img === Actor.DEFAULT_ICON) ||
+        !foundry.utils.hasProperty(initData, "img"))
     ) {
       this.updateSource({ img: CONFIG.YZECORIOLIS.DEFAULT_SHIP_KEY_ART });
     }
@@ -36,7 +37,7 @@ export class yzecoriolisActor extends Actor {
     // we check the incoming data to make sure we aren't overriding a 'cloning'
     // operation.
     if (
-      !hasProperty(initData, "img") &&
+      !foundry.utils.hasProperty(initData, "img") &&
       (initData.type === "character" || initData.type === "npc")
     ) {
       this.updateSource({
@@ -1755,22 +1756,15 @@ export class yzecoriolisActor extends Actor {
     }
   }
 
-  _prepareChatRollOptions(template, title) {
+  _prepareChatRollOptions(template) {
     let chatOptions = {
       speaker: {
         alias: this.prototypeToken.name,
         actor: this._id,
       },
-      title: title,
       template: template,
-      rollMode: game.settings.get("core", "rollMode"),
+      messageMode: game.settings.get("core", "messageMode"),
       sound: CONFIG.sounds.dice,
-      flags: {
-        img: this.prototypeToken.randomImg
-          ? this.img
-          : this.prototypeToken.texture.src,
-      },
-      // img to be displayed next to the name on the test card - if it's a wildcard img, use the actor image
     };
 
     // If the test is coming from a token sheet
@@ -1778,7 +1772,6 @@ export class yzecoriolisActor extends Actor {
       chatOptions.speaker.alias = this.token.name; // Use the token name instead of the actor name
       chatOptions.speaker.token = this.token._id;
       chatOptions.speaker.scene = canvas.scene._id;
-      chatOptions.flags.img = this.token.texture.src; // Use the token image instead of the actor image
     } // If a linked actor - use the currently selected token's data if the actor id matches
     else {
       let speaker = ChatMessage.getSpeaker();
@@ -1786,9 +1779,6 @@ export class yzecoriolisActor extends Actor {
         chatOptions.speaker.alias = speaker.alias;
         chatOptions.speaker.token = speaker.token;
         chatOptions.speaker.scene = speaker.scene;
-        chatOptions.flags.img = speaker.token
-          ? canvas.tokens.get(speaker.token).document.texture.src
-          : chatOptions.flags.img;
       }
     }
 

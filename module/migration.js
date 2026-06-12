@@ -38,7 +38,7 @@ export const migrateWorld = async function () {
   // Migrate Actor Override Tokens
   for (let s of game.scenes.contents) {
     try {
-      const updateData = migrateSceneData(s);
+      const updateData = await migrateSceneData(s);
       if (!foundry.utils.isEmpty(updateData)) {
         console.log(`Migrating Scene entity ${s.name}`);
         await s.update(updateData, { enforceTypes: false });
@@ -51,8 +51,8 @@ export const migrateWorld = async function () {
   // Migrate World Compendium Packs
   const packs = game.packs.filter((p) => {
     return (
-      p.metadata.package === "world" &&
-      ["Actor", "Item", "Scene"].includes(p.metadata.entity)
+      p.metadata.packageType === "world" &&
+      ["Actor", "Item", "Scene"].includes(p.documentName)
     );
   });
   for (let p of packs) {
@@ -82,8 +82,8 @@ export const migrateWorld = async function () {
 export const bootstrapTalentCompendium = async function () {
   const talentPack = game.packs.find((p) => {
     return (
-      p.metadata.package === "world" &&
-      p.metadata.entity === "Item" &&
+      p.metadata.packageType === "world" &&
+      p.documentName === "Item" &&
       p.metadata.name === "talents"
     );
   });
@@ -94,7 +94,7 @@ export const bootstrapTalentCompendium = async function () {
 
   const tempItems = await Item.create(content, { temporary: true });
   for (let t of tempItems) {
-    await talentPack.importEntity(t);
+    await talentPack.importDocument(t);
     console.log(`imported Talent ${t.name} into ${talentPack.collection}`);
   }
 };
@@ -140,8 +140,8 @@ const importEveryDayItemsCompendium = async function (
 const getCompendiumForImport = function (compendiumName) {
   const comp = game.packs.find((p) => {
     return (
-      p.metadata.package === "world" &&
-      p.metadata.entity === "Item" &&
+      p.metadata.packageType === "world" &&
+      p.documentName === "Item" &&
       p.metadata.name === compendiumName
     );
   });
@@ -150,10 +150,8 @@ const getCompendiumForImport = function (compendiumName) {
 const prepItemsForImport = function (itemArray) {
   let itemList = [];
   for (let t of itemArray) {
-    let tt = { data: t };
-    tt.name = t.name;
-    tt.type = "gear";
-    delete t.name;
+    const { name, ...system } = t;
+    const tt = { name, type: "gear", system };
     itemList.push(tt);
   }
   console.log(itemList);
@@ -166,7 +164,7 @@ const importItemsIntoCompendium = async function (
 ) {
   const tempItems = await Item.create(preppedList, { temporary: true });
   for (let t of tempItems) {
-    await targetCompendium.importEntity(t);
+    await targetCompendium.importDocument(t);
     console.log(`imported Item ${t.name} into ${targetCompendium.collection}`);
   }
 };
@@ -176,35 +174,37 @@ const importItemsIntoCompendium = async function (
  * @return {Promise}
  */
 export const migrateCompendium = async function (pack) {
-  const entity = pack.metadata.entity;
+  const entity = pack.documentName;
   if (!["Actor", "Item", "Scene"].includes(entity)) return;
 
-  // Begin by requesting server-side data model migration and get the migrated content
-  await pack.migrate();
-  const content = await pack.getContent();
+  const wasLocked = pack.locked;
+  await pack.configure({ locked: false });
+  try {
+    await pack.migrate();
+    const documents = await pack.getDocuments();
 
-  // Iterate over compendium entries - applying fine-tuned migration functions
-  for (let ent of content) {
-    try {
-      let updateData = null;
-      if (entity === "Item") updateData = migrateItemData(ent.data);
-      else if (entity === "Actor") updateData = migrateActorData(ent.data);
-      else if (entity === "Scene") updateData = migrateSceneData(ent.data);
-      if (!foundry.utils.isEmpty(updateData)) {
-        expandObject(updateData);
-        updateData["_id"] = ent._id;
-        await pack.updateEntity(updateData);
-        console.log(
-          `Migrated ${entity} entity ${ent.name} in Compendium ${pack.collection}`
-        );
+    for (let document of documents) {
+      try {
+        const source = document.toObject();
+        let updateData = null;
+        if (entity === "Item") updateData = migrateItemData(source);
+        else if (entity === "Actor") updateData = migrateActorData(source);
+        else if (entity === "Scene")
+          updateData = await migrateSceneData(document);
+        if (!foundry.utils.isEmpty(updateData)) {
+          await document.update(updateData, { enforceTypes: false });
+          console.log(
+            `Migrated ${entity} ${document.name} in Compendium ${pack.collection}`
+          );
+        }
+      } catch (err) {
+        console.error(err);
       }
-    } catch (err) {
-      console.error(err);
     }
+  } finally {
+    await pack.configure({ locked: wasLocked });
   }
-  console.log(
-    `Migrated all ${entity} entities from Compendium ${pack.collection}`
-  );
+  console.log(`Migrated all ${entity} documents from ${pack.collection}`);
 };
 
 /* -------------------------------------------- */
@@ -223,8 +223,8 @@ export const migrateActorData = function (actor) {
   // introduce movement rate
   const correctType = actor.type === "npc" || actor.type === "character";
   if (
-    (correctType && !hasProperty(actor, "system.movementRate")) ||
-    (hasProperty(actor, "system.movementRate") &&
+    (correctType && !foundry.utils.hasProperty(actor, "system.movementRate")) ||
+    (foundry.utils.hasProperty(actor, "system.movementRate") &&
       actor.system.movementRate === null)
   ) {
     updateData = { "system.movementRate": 10 };
@@ -248,7 +248,7 @@ export const migrateActorData = function (actor) {
     // Update the Owned Item
     if (!foundry.utils.isEmpty(itemUpdate)) {
       itemUpdate._id = itemData._id;
-      arr.push(expandObject(itemUpdate));
+      arr.push(foundry.utils.expandObject(itemUpdate));
     }
 
     return arr;
@@ -293,21 +293,17 @@ export const migrateItemData = function (item) {
  * @param {Object} scene  The Scene data to Update
  * @return {Object}       The updateData to apply
  */
-export const migrateSceneData = function (scene) {
-  return {
-    tokens: scene.tokens.map((t) => {
-      const token = t.toJSON();
-      if (!t.actorLink) {
-        const updateData = migrateActorData({
-          ...t.actorData,
-          type: t.actor.type,
-        });
-        token.actorData = foundry.utils.mergeObject(t.actorData, updateData);
-      }
+export const migrateSceneData = async function (scene) {
+  for (const tokenDocument of scene.tokens) {
+    if (tokenDocument.actorLink || !tokenDocument.actor) continue;
 
-      return token;
-    }),
-  };
+    const updateData = migrateActorData(tokenDocument.actor.toObject());
+    if (foundry.utils.isEmpty(updateData)) continue;
+
+    console.log(`Migrating synthetic Actor for Token ${tokenDocument.name}`);
+    await tokenDocument.actor.update(updateData, { enforceTypes: false });
+  }
+  return {};
 };
 
 const migrateDarknessPoints = async function () {
@@ -323,7 +319,7 @@ const migrateDarknessPoints = async function () {
 };
 
 export const createActorKeyArtUpdate = function (actor) {
-  return { img: actor.system.keyArt, system: { keyArt: "" } };
+  return { img: actor.system.keyArt, "system.keyArt": "" };
 };
 
 export const migrateActorKeyArtIfNeeded = function (actor) {
@@ -340,9 +336,9 @@ export const migrateBlastPower = function (itemData) {
   if (itemData._id === null) {
     return;
   }
-  if (itemData.system.crit.blastPower) {
-    itemData.update({ "system.blastPower": itemData.system.crit.blastPower });
-    itemData.update({ "system.crit.blastPower": null });
+  if (itemData.system?.crit?.blastPower) {
+    itemData.system.blastPower = itemData.system.crit.blastPower;
+    itemData.system.crit.blastPower = null;
   }
 };
 

@@ -1,4 +1,7 @@
 import { getID } from "../util.js";
+
+const { ItemSheet } = foundry.appv1.sheets;
+
 /**
  * Extend the basic ItemSheet with some very simple modifications
  * @extends {ItemSheet}
