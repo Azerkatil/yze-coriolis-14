@@ -41,23 +41,35 @@ export class yzecoriolisActorSheet extends ActorSheet {
 
   /** @override */
   async getData(options) {
-    const baseData = super.getData(options);
+    const baseData = await super.getData(options);
+    const actor = this.actor;
+    const actorData = actor.toObject(false);
     let itemData = {};
     let actorStats = {};
-    if (this.actor.type === "character" || this.actor.type === "npc") {
+    if (actor.type === "character" || actor.type === "npc") {
       // prepare items
-      itemData = this._prepareCharacterItems(baseData.actor);
-      actorStats = this._prepCharacterStats(baseData.actor.system);
+      itemData = this._prepareCharacterItems(actor);
+      actorStats = this._prepCharacterStats(actor.system);
     }
-    const bioNotes = await TextEditor.enrichHTML(baseData.actor.system.notes, {
-      async: true,
-    });
+    const bioNotes =
+      await foundry.applications.ux.TextEditor.implementation.enrichHTML(
+        actor.system.notes,
+        {
+          async: true,
+          relativeTo: actor,
+          secrets: actor.isOwner,
+        }
+      );
     const sheetData = {
+      ...baseData,
+      ...actorData,
+      actor,
+      document: actor,
+      system: actor.system,
       editable: baseData.editable,
-      owner: baseData.actor.isOwner,
+      owner: actor.isOwner,
       config: CONFIG.YZECORIOLIS,
-      bioNotes: bioNotes,
-      ...baseData.actor,
+      bioNotes,
       ...itemData,
       ...actorStats,
     };

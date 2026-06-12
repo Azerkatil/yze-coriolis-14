@@ -38,19 +38,28 @@ export class yzecoriolisItemSheet extends ItemSheet {
 
   /** @override */
   async getData(options) {
-    const baseData = super.getData(options);
-    const itemDescript = await TextEditor.enrichHTML(
-      baseData.item.system.description,
-      {
-        async: true,
-      }
-    );
+    const baseData = await super.getData(options);
+    const item = this.item;
+    const itemData = item.toObject(false);
+    const itemDescript =
+      await foundry.applications.ux.TextEditor.implementation.enrichHTML(
+        item.system.description,
+        {
+          async: true,
+          relativeTo: item,
+          secrets: item.isOwner,
+        }
+      );
     const sheetData = {
+      ...baseData,
+      ...itemData,
+      item,
+      document: item,
+      system: item.system,
       editable: baseData.editable,
-      owner: baseData.item.isOwner,
+      owner: item.isOwner,
       config: CONFIG.YZECORIOLIS,
       itemDescript,
-      ...baseData.item,
     };
     return sheetData;
   }

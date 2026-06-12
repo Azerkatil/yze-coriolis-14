@@ -53,10 +53,12 @@ export class yzecoriolisShipSheet extends ActorSheet {
     });
   }
   async getData(options) {
-    const baseData = super.getData(options);
+    const baseData = await super.getData(options);
+    const actor = this.actor;
+    const actorData = actor.toObject(false);
     let stats = {};
-    if (baseData.actor.type === "ship") {
-      stats = this._prepShipStats(baseData.actor);
+    if (actor.type === "ship") {
+      stats = this._prepShipStats(actor);
     }
 
     // instead of using object flags (which had a race condition in mass
@@ -64,21 +66,31 @@ export class yzecoriolisShipSheet extends ActorSheet {
     // the one we don't wish to have any sort of 'object sizing' and everything
     // else we do, we can exclude it specifically.
     const shipImageSet =
-      baseData.actor.img !== CONFIG.YZECORIOLIS.DEFAULT_SHIP_KEY_ART;
+      actor.img !== CONFIG.YZECORIOLIS.DEFAULT_SHIP_KEY_ART;
 
     let imageCSSClass = ""; // no css class
     if (shipImageSet) {
       imageCSSClass = "object-fit-cover";
     }
-    const shipNotes = await TextEditor.enrichHTML(baseData.actor.system.notes, {
-      async: true,
-    });
+    const shipNotes =
+      await foundry.applications.ux.TextEditor.implementation.enrichHTML(
+        actor.system.notes,
+        {
+          async: true,
+          relativeTo: actor,
+          secrets: actor.isOwner,
+        }
+      );
     const sheetData = {
+      ...baseData,
+      ...actorData,
+      actor,
+      document: actor,
+      system: actor.system,
       editable: baseData.editable,
-      owner: baseData.actor.isOwner,
+      owner: actor.isOwner,
       config: CONFIG.YZECORIOLIS,
       shipNotes,
-      ...baseData.actor,
       ...stats,
       imageCSSClass,
     };

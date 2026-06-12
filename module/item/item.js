@@ -112,10 +112,14 @@ export class yzecoriolisItem extends Item {
     const sysData = foundry.utils.deepClone(this.system);
     const labels = this.labels;
     // Rich text description
-    sysData.description = await TextEditor.enrichHTML(
-      sysData.description,
-      htmlOptions
-    );
+    sysData.description =
+      await foundry.applications.ux.TextEditor.implementation.enrichHTML(
+        sysData.description,
+        {
+          ...htmlOptions,
+          relativeTo: this,
+        }
+      );
 
     // Item type specific properties
     const props = [];
